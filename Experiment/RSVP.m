@@ -1,4 +1,10 @@
 %{
+TODO
+- 日本語コメント修正
+- 日本語の指示コマンド入れ替え
+- プロトコルチェック
+%}
+%{
 Experiment setup for Brain-Computer Interface RSVP.
 
 ======================
@@ -67,10 +73,10 @@ try
         if keyIsDown
             keyName = KbName(find(keyCode, 1));
             if ischar(keyName)
-                if strcmpi(keyName, 'Return') || strcmpi(keyName, 'KP_Enter')
+                if any(strcmpi(keyName, {'return', 'kp_enter'}))
                     break;
-                elseif strcmpi(keyName, 'ESCAPE')
-                    error('Experiment aborted by user.');
+                elseif any(strcmpi(keyName, {'escape', 'esc'}))
+                    error('日本語行ける？');
                 end
             end
         end
@@ -113,8 +119,8 @@ try
             if keyIsDown
                 keyPressed = KbName(find(keyCode, 1));
                 if ischar(keyPressed)
-                    if strcmpi(keyPressed, 'ESCAPE')
-                        error('Experiment aborted by user.');
+                    if any(strcmpi(keyPressed, {'escape', 'esc'}))
+                        error('日本語行ける？');
                     elseif length(keyPressed) == 1 && any(upper(keyPressed) == all_chars)
                         resp = upper(keyPressed);
                         break;
