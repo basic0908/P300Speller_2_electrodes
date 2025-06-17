@@ -1,38 +1,4 @@
-%{
-Experiment setup for Brain-Computer Interface RSVP.
 
-======================
-RSVP Experimental Flow
-======================
-1. Total of 40 RSVP trials per participant.
-2. Each trial:
-   a. A stream of 21 characters is presented rapidly at the same screen location.
-      - 1 target character (green)
-      - 20 non-target characters (white)
-      - All shown in randomized order
-   b. Presentation rate: 10 Hz (i.e., each character shown for 100 ms)
-3. After each stream:
-   a. A response window (5 seconds) allows the participant to press a key to indicate the target character.
-4. No feedback is given about correctness.
-5. Accuracy is measured as T1%:
-   - Percentage of correctly identified target characters out of 40 total trials.
-
-=========================
-RSVP実験フロー
-=========================
-1. 被験者ごとに合計40試行のRSVPタスクを実施します。
-2. 各試行では以下を行います：
-   a. 同じ位置に21文字の文字列を高速で提示します。
-      - ターゲット文字が1つ（緑色）
-      - 非ターゲット文字が20個（白色）
-      - 文字の順序はランダムに並べ替えられます
-   b. 提示レートは10Hz（各文字の提示時間は100ミリ秒）
-3. 文字列の提示終了後：
-   a. 5秒間の応答ウィンドウで、参加者がターゲット文字をキーボードで入力します。
-4. 正誤のフィードバックは行いません。
-5. 正答率（T1%）で成績を評価します：
-   - 40試行中、ターゲットを正しく識別できた割合（％）
-%}
 clc; clear; close all;
 
 %% === パス・保存設定 ===
@@ -47,7 +13,7 @@ saveFilename = [savePath '\' subjectName '_' taskName '_' datestr(now,30)];
 all_chars = ['A':'Z'];
 n_trials = 40;
 stream_len = 21;
-stim_duration = 0.05;  % 100 ms
+stim_duration = 0.1;  % 100 ms
 response_window = 5;
 
 %% === EEG設定 ===
@@ -77,7 +43,7 @@ DisableKeysForKbCheck([]);
 if keyIsDown
     DisableKeysForKbCheck(find(keyCode));
 end
-Screen('Preference', 'SkipSyncTests', 1);
+Screen('Preference', 'SkipSyncTests', 2);
 AssertOpenGL;
 
 ScreenDevices = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices();
