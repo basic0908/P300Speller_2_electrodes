@@ -40,6 +40,7 @@ EEG記録エポック:
 - これは600Hzのサンプリングレートで1試行あたり1320サンプルに相当します。
 %}
 clc; clear; close all;
+KbName('UnifyKeyNames');
 %% === パス・保存設定 ===
 defaultPath = pwd;
 subjectName = strtrim(input('Enter Subject Name: ', 's'));
@@ -50,7 +51,7 @@ saveFilename = [savePath '\' subjectName '_' taskName '_' datestr(now,30)];
 %% === RSVP Parameters ===
 all_chars = ['A':'Z'];
 n_trials = 30;
-stream_len = 10;
+stream_len = 21;
 stim_duration = 0.1;  % 100 ms
 response_window = 5;
 %% === EEG設定 ===
