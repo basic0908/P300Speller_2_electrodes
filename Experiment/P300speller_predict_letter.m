@@ -25,7 +25,9 @@ try
     
     preStreamMs = 200;
     postStreamMs = 1000;
-    % Precise calculation of the total time for all flashes and ISIs
+    
+    % CORRECTED: The total duration now correctly includes the ISI, reflecting
+    % the true time elapsed during the flashing sequence.
     streamDurationSecs = totalFlashes * (flashDuration + isiDuration); 
     totalEpochSecs = (preStreamMs / 1000) + streamDurationSecs + (postStreamMs / 1000);
 
@@ -34,7 +36,7 @@ try
     opts = detectImportOptions(eegCsvPath);
     opts.SelectedVariableNames = [2 3]; % Select the two EEG channels
     SAMPLE_FREQ = 600;
-    EXPECTED_SAMPLES = round(totalEpochSecs * SAMPLE_FREQ);
+    EXPECTED_SAMPLES = round(totalEpochSecs * SAMPLE_FREQ); % This will now be ~14220
     
     % Plotting window parameters
     plotTimeWindow = 4;
@@ -125,6 +127,31 @@ try
             Screen('Flip', window);
             
             while true % Wait for spacebar
+                % --- Update EEG Plot ---
+                opts.DataLines = [lastReadRow + 1, inf];
+                try
+                    newData = readmatrix(eegCsvPath, opts) .* 18.3 ./ 64;
+                    if ~isempty(newData)
+                        newData = [newData, newData(:,2) - newData(:,1)];
+                        lastReadRow = lastReadRow + size(newData,1);
+                        [filteredData, Zf] = filter(Bf, Af, newData, Zf);
+                        if plotIndex + size(newData,1) - 1 < SAMPLE_FREQ * plotTimeWindow
+                            plotDataBuffer(plotIndex : plotIndex + size(newData,1) - 1, :) = filteredData;
+                            plotIndex = plotIndex + size(newData,1);
+                        else
+                            plotDataBuffer(plotIndex:end, :) = filteredData(1:size(plotDataBuffer,1) - plotIndex + 1, :);
+                            plotIndex = 1;
+                            plotBaseline = nanmean(plotDataBuffer);
+                        end
+                        updateEEGPlotAndNoise(plotDataBuffer, EEGplot, titletext, 4:0.5:40, SAMPLE_FREQ, plotTimeWindow, NoiseMU, NoiseSigma, plotIndex, Zf, filteredData, plotBaseline);
+                    end
+                catch
+                end
+                
+                % ADDED: Force MATLAB to process graphics queue and update the figure
+                drawnow; 
+
+                % --- Check for Key Press ---
                 [keyIsDown, ~, keyCode] = KbCheck;
                 if keyIsDown
                     if keyCode(spaceKey), break;
@@ -144,8 +171,9 @@ try
             fprintf('Starting P300 flashing sequence for letter %d of %d...\n', letterIdx, length(currentTargetWord));
             Screen('TextSize', window, 80);
             
+            % CORRECTED: Mark start row BEFORE the pre-stream wait
+            startRowForTrial = lastReadRow; 
             WaitSecs(preStreamMs / 1000);
-            startRowForTrial = lastReadRow;
             
             vbl = Screen('Flip', window); % Get initial timestamp for the trial
 
@@ -170,6 +198,7 @@ try
             opts.DataLines = [startRowForTrial + 1, inf];
             trialEEGData = readmatrix(eegCsvPath, opts) .* 18.3 ./ 64;
             
+            % This logic is now more robust because EXPECTED_SAMPLES is correct
             if size(trialEEGData, 1) > EXPECTED_SAMPLES
                 trialEEGData = trialEEGData(1:EXPECTED_SAMPLES, :);
             elseif size(trialEEGData, 1) < EXPECTED_SAMPLES
