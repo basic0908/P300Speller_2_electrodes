@@ -26,7 +26,7 @@ try
     preStreamMs = 200;
     postStreamMs = 1000;
     
-    % CORRECTED: The total duration now correctly includes the ISI, reflecting
+    % CORRECT: The total duration now correctly includes the ISI, reflecting
     % the true time elapsed during the flashing sequence.
     streamDurationSecs = totalFlashes * (flashDuration + isiDuration); 
     totalEpochSecs = (preStreamMs / 1000) + streamDurationSecs + (postStreamMs / 1000);
@@ -121,12 +121,14 @@ try
         for letterIdx = 1:length(currentTargetWord)
             
             % --- Instructions and Start Screen for current letter ---
-            Screen('TextSize', window, 40);
-            drawStatusText(window, currentTargetWord, predictedWord, screenYpixels, textColor, predictedTextColor);
-            DrawFormattedText(window, 'Press SPACE to spell the next letter', 'center', 'center', textColor);
-            Screen('Flip', window);
-            
             while true % Wait for spacebar
+                % --- Draw all visual elements on every frame ---
+                Screen('TextSize', window, 80);
+                drawGrid(window, spellerMatrix, gridX_start, gridY_start, cellWidth, cellHeight, textColor);
+                drawStatusText(window, currentTargetWord, predictedWord, screenYpixels, textColor, predictedTextColor);
+                Screen('TextSize', window, 40);
+                DrawFormattedText(window, 'Press SPACE to spell the next letter', 'center', 'center', textColor);
+
                 % --- Update EEG Plot ---
                 opts.DataLines = [lastReadRow + 1, inf];
                 try
@@ -148,7 +150,10 @@ try
                 catch
                 end
                 
-                % ADDED: Force MATLAB to process graphics queue and update the figure
+                % Show all drawn elements on the screen
+                Screen('Flip', window);
+
+                % Force MATLAB to process graphics queue and update the EEG figure
                 drawnow; 
 
                 % --- Check for Key Press ---
