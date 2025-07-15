@@ -26,9 +26,9 @@ try
     screenNumber = max(screens);
 
     % Define colors
-    backgroundColor = [128 128 128]; % Grey
-    textColor = [255 255 255];       % White
-    highlightColor = [0 255 0];      % Green for highlighted characters
+    backgroundColor = [0 0 0];         % Black
+    textColor = [128 128 128];         % Grey
+    highlightColor = [255 255 255];    % White for highlighted characters
 
     % Open a window
     [window, ~] = Screen('OpenWindow', screenNumber, backgroundColor);
@@ -93,7 +93,7 @@ try
             break;
         end
 
-        % --- Draw the base grid (all white) ---
+        % --- Draw the base grid (all grey) ---
         for r = 1:numRows
             for c = 1:numCols
                 cellCenterX = gridX_start + (c - 0.5) * cellWidth;
