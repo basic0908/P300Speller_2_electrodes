@@ -25,7 +25,8 @@ try
     
     preStreamMs = 200;
     postStreamMs = 1000;
-    streamDurationSecs = totalFlashes * flashDuration;
+    % Precise calculation of the total time for all flashes and ISIs
+    streamDurationSecs = totalFlashes * (flashDuration + isiDuration); 
     totalEpochSecs = (preStreamMs / 1000) + streamDurationSecs + (postStreamMs / 1000);
 
     % --- EEG Parameters ---
@@ -33,7 +34,7 @@ try
     opts = detectImportOptions(eegCsvPath);
     opts.SelectedVariableNames = [2 3]; % Select the two EEG channels
     SAMPLE_FREQ = 600;
-    EXPECTED_SAMPLES = round(totalEpochSecs * SAMPLE_FREQ); % Should be 9720
+    EXPECTED_SAMPLES = round(totalEpochSecs * SAMPLE_FREQ);
     
     % Plotting window parameters
     plotTimeWindow = 4;
@@ -66,10 +67,12 @@ try
     backgroundColor = [0 0 0];
     textColor = [128 128 128];
     highlightColor = [255 255 255];
+    predictedTextColor = [0 255 0]; % Green for the final prediction
 
     % Open a window
-    [window, ~] = Screen('OpenWindow', screenNumber, backgroundColor);
+    [window, windowRect] = Screen('OpenWindow', screenNumber, backgroundColor);
     [screenXpixels, screenYpixels] = Screen('WindowSize', window);
+    ifi = Screen('GetFlipInterval', window); % Get inter-frame interval for precise timing
     ListenChar(2);
     HideCursor;
 
@@ -96,9 +99,10 @@ try
 
     % --- Grid Layout Calculation ---
     gridWidth = screenXpixels * 0.9;
-    gridHeight = screenYpixels * 0.9;
+    gridHeight = screenYpixels * 0.7; % Make grid smaller to leave space at top
     gridX_start = (screenXpixels - gridWidth) / 2;
-    gridY_start = (screenYpixels - gridHeight) / 2;
+    gridY_start = (screenYpixels - gridHeight) / 2 + (screenYpixels * 0.15); % Move grid down
+
     cellWidth = gridWidth / numCols;
     cellHeight = gridHeight / numRows;
 
@@ -116,6 +120,7 @@ try
             
             % --- Instructions and Start Screen for current letter ---
             Screen('TextSize', window, 40);
+            drawStatusText(window, currentTargetWord, predictedWord, screenYpixels, textColor, predictedTextColor);
             DrawFormattedText(window, 'Press SPACE to spell the next letter', 'center', 'center', textColor);
             Screen('Flip', window);
             
@@ -135,57 +140,28 @@ try
             flashSequence = flashSequence(shuffledIndices);
             flashSequence = flashSequence(1:totalFlashes);
             
-            % --- Flashing Loop ---
+            % --- Flashing Loop with Precise Timing ---
             fprintf('Starting P300 flashing sequence for letter %d of %d...\n', letterIdx, length(currentTargetWord));
             Screen('TextSize', window, 80);
+            
             WaitSecs(preStreamMs / 1000);
             startRowForTrial = lastReadRow;
+            
+            vbl = Screen('Flip', window); % Get initial timestamp for the trial
 
             for flashNum = 1:totalFlashes
                 if KbCheck && keyCode(escapeKey), break; end
 
                 % --- Draw highlighted grid (the "flash") ---
-                % First, draw all characters in the base color
-                for r = 1:numRows
-                    for c = 1:numCols
-                        cellCenterX = gridX_start + (c - 0.5) * cellWidth;
-                        cellCenterY = gridY_start + (r - 0.5) * cellHeight;
-                        DrawFormattedText(window, spellerMatrix{r, c}, 'center', 'center', textColor, [], [], [], [], [], [cellCenterX-cellWidth/2, cellCenterY-cellHeight/2, cellCenterX+cellWidth/2, cellCenterY+cellHeight/2]);
-                    end
-                end
-                % Then, draw the highlighted characters on top in the highlight color
-                sequenceIdx = flashSequence(flashNum);
-                if sequenceIdx <= numRows
-                    rowToHighlight = sequenceIdx;
-                    for c = 1:numCols
-                        cellCenterX = gridX_start + (c - 0.5) * cellWidth;
-                        cellCenterY = gridY_start + (rowToHighlight - 0.5) * cellHeight;
-                        DrawFormattedText(window, spellerMatrix{rowToHighlight, c}, 'center', 'center', highlightColor, [], [], [], [], [], [cellCenterX-cellWidth/2, cellCenterY-cellHeight/2, cellCenterX+cellWidth/2, cellCenterY+cellHeight/2]);
-                    end
-                else
-                    colToHighlight = sequenceIdx - numRows;
-                    for r = 1:numRows
-                        cellCenterX = gridX_start + (colToHighlight - 0.5) * cellWidth;
-                        cellCenterY = gridY_start + (r - 0.5) * cellHeight;
-                        DrawFormattedText(window, spellerMatrix{r, colToHighlight}, 'center', 'center', highlightColor, [], [], [], [], [], [cellCenterX-cellWidth/2, cellCenterY-cellHeight/2, cellCenterX+cellWidth/2, cellCenterY+cellHeight/2]);
-                    end
-                end
-                
-                Screen('Flip', window);
-                WaitSecs(flashDuration);
+                drawGrid(window, spellerMatrix, gridX_start, gridY_start, cellWidth, cellHeight, textColor);
+                drawStatusText(window, currentTargetWord, predictedWord, screenYpixels, textColor, predictedTextColor);
+                highlightSequence(window, spellerMatrix, flashSequence(flashNum), numRows, gridX_start, gridY_start, cellWidth, cellHeight, highlightColor);
+                vbl = Screen('Flip', window, vbl + isiDuration - (ifi/2));
 
                 % --- Draw base grid again for the ISI (the "un-flash") ---
-                % This prevents the screen from going blank.
-                for r = 1:numRows
-                    for c = 1:numCols
-                        cellCenterX = gridX_start + (c - 0.5) * cellWidth;
-                        cellCenterY = gridY_start + (r - 0.5) * cellHeight;
-                        DrawFormattedText(window, spellerMatrix{r, c}, 'center', 'center', textColor, [], [], [], [], [], [cellCenterX-cellWidth/2, cellCenterY-cellHeight/2, cellCenterX+cellWidth/2, cellCenterY+cellHeight/2]);
-                    end
-                end
-                
-                Screen('Flip', window);
-                WaitSecs(isiDuration);
+                drawGrid(window, spellerMatrix, gridX_start, gridY_start, cellWidth, cellHeight, textColor);
+                drawStatusText(window, currentTargetWord, predictedWord, screenYpixels, textColor, predictedTextColor);
+                vbl = Screen('Flip', window, vbl + flashDuration - (ifi/2));
             end
             disp('Flashing sequence complete.');
 
@@ -217,21 +193,21 @@ try
         fprintf('Final Prediction for "%s": %s\n', currentTargetWord, predictedWord);
         fprintf('----------------------------------\n');
         
+        Screen('TextSize', window, 40);
         if wordIdx < length(wordsToSpell)
-            DrawFormattedText(window, 'Word Complete! Press SPACE for the next word.', 'center', 'center', textColor);
+            DrawFormattedText(window, 'Word Complete! Next word starting soon...', 'center', 'center', textColor);
+            Screen('Flip', window);
+            WaitSecs(3); % Wait for 3 seconds before starting the next word
         else
             DrawFormattedText(window, 'All words finished! Press ESC to exit.', 'center', 'center', textColor);
-        end
-        Screen('Flip', window);
-
-        while true % Wait for space or escape
-            [keyIsDown, ~, keyCode] = KbCheck;
-            if keyIsDown
-                if keyCode(spaceKey) && wordIdx < length(wordsToSpell)
+            Screen('Flip', window);
+            % Wait for escape key after the very last word
+            while true
+                [keyIsDown, ~, keyCode] = KbCheck;
+                if keyIsDown && keyCode(escapeKey)
                     break;
-                elseif keyCode(escapeKey)
-                    sca; close(h); ShowCursor; ListenChar(0); return;
                 end
+                WaitSecs(0.01);
             end
         end
 
@@ -252,7 +228,44 @@ catch
     psychrethrow(psychlasterror);
 end
 
-% --- Helper Function (replicated from data collection script) ---
+% --- Helper Functions ---
+function drawGrid(window, matrix, x_start, y_start, cellW, cellH, color)
+    [rows, cols] = size(matrix);
+    for r = 1:rows
+        for c = 1:cols
+            cellCenterX = x_start + (c - 0.5) * cellW;
+            cellCenterY = y_start + (r - 0.5) * cellH;
+            DrawFormattedText(window, matrix{r, c}, 'center', 'center', color, [], [], [], [], [], [cellCenterX-cellW/2, cellCenterY-cellH/2, cellCenterX+cellW/2, cellCenterY+cellH/2]);
+        end
+    end
+end
+
+function highlightSequence(window, matrix, seqIdx, numRows, x_start, y_start, cellW, cellH, color)
+    [~, cols] = size(matrix);
+    if seqIdx <= numRows
+        rowToHighlight = seqIdx;
+        for c = 1:cols
+            cellCenterX = x_start + (c - 0.5) * cellW;
+            cellCenterY = y_start + (rowToHighlight - 0.5) * cellH;
+            DrawFormattedText(window, matrix{rowToHighlight, c}, 'center', 'center', color, [], [], [], [], [], [cellCenterX-cellW/2, cellCenterY-cellH/2, cellCenterX+cellW/2, cellCenterY+cellH/2]);
+        end
+    else
+        colToHighlight = seqIdx - numRows;
+        for r = 1:numRows
+            cellCenterX = x_start + (colToHighlight - 0.5) * cellW;
+            cellCenterY = y_start + (r - 0.5) * cellH;
+            DrawFormattedText(window, matrix{r, colToHighlight}, 'center', 'center', color, [], [], [], [], [], [cellCenterX-cellW/2, cellCenterY-cellH/2, cellCenterX+cellW/2, cellCenterY+cellH/2]);
+        end
+    end
+end
+
+function drawStatusText(window, targetWord, predictedWord, screenY, targetColor, predictedColor)
+    Screen('TextSize', window, 40);
+    DrawFormattedText(window, ['Target Word: ' targetWord], 'center', screenY * 0.05, targetColor);
+    DrawFormattedText(window, ['Predicted:   ' predictedWord], 'center', screenY * 0.1, predictedColor);
+    Screen('TextSize', window, 80); % Reset for the grid
+end
+
 function [cNoisez, cbaseline, cidx] = updateEEGPlotAndNoise(cplotdata, EEGplot, titletext, FreqWindow, SAMPLE_FREQ, timeWindow, NoiseMU, NoiseSigma, cidx, Zf1, tempdata1, cbaseline)
     cdata = cplotdata(:,[1 2]);
     [pxx, ~] = pwelch(cdata, SAMPLE_FREQ*timeWindow, 0, FreqWindow, SAMPLE_FREQ);
